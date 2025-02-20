@@ -1,6 +1,6 @@
 'use client';
 
-import { type ReactNode, useEffect } from 'react';
+import { type ReactNode } from 'react';
 import { useKeyboard } from '@/hooks';
 
 interface KeyboardProviderProps {

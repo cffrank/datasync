@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useSync } from './use-sync';
 import { useSidebar } from './use-sidebar';
 import { useToast } from './use-toast';
@@ -7,15 +7,18 @@ import { ERROR_MESSAGES } from '@/lib/constants';
 export type KeyHandler = (event: KeyboardEvent) => void;
 
 export function useKeyboard() {
-  const [handlers] = useState<Map<string, KeyHandler>>(new Map());
+  const handlers = useRef<Map<string, KeyHandler>>(new Map());
   const { isRunning, sync, cancelSync } = useSync();
   const { isCollapsed, expandSidebar, collapseSidebar } = useSidebar();
   const toast = useToast();
 
   // Register default handlers
   useEffect(() => {
+    const map = handlers.current;
+    map.clear(); // Clear previous handlers
+
     // Sync shortcuts
-    handlers.set('ctrl+s', (event) => {
+    map.set('ctrl+s', (event) => {
       event.preventDefault();
       if (!isRunning) {
         sync();
@@ -24,7 +27,7 @@ export function useKeyboard() {
       }
     });
 
-    handlers.set('ctrl+x', (event) => {
+    map.set('ctrl+x', (event) => {
       event.preventDefault();
       if (isRunning) {
         cancelSync();
@@ -32,7 +35,7 @@ export function useKeyboard() {
     });
 
     // Sidebar shortcuts
-    handlers.set('ctrl+b', (event) => {
+    map.set('ctrl+b', (event) => {
       event.preventDefault();
       if (isCollapsed) {
         expandSidebar();
@@ -40,7 +43,7 @@ export function useKeyboard() {
         collapseSidebar();
       }
     });
-  }, [handlers, isRunning, sync, cancelSync, isCollapsed, expandSidebar, collapseSidebar, toast]);
+  }, [isRunning, sync, cancelSync, isCollapsed, expandSidebar, collapseSidebar, toast]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -56,7 +59,7 @@ export function useKeyboard() {
         .join('+');
 
       // Execute handler if registered
-      const handler = handlers.get(combo);
+      const handler = handlers.current.get(combo);
       if (handler) {
         handler(event);
       }
@@ -64,18 +67,19 @@ export function useKeyboard() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handlers]);
+  }, []);
 
   // Register custom handler
   const register = useCallback((combo: string, handler: KeyHandler) => {
-    handlers.set(combo.toLowerCase(), handler);
-    return () => handlers.delete(combo.toLowerCase());
-  }, [handlers]);
+    const map = handlers.current;
+    map.set(combo.toLowerCase(), handler);
+    return () => map.delete(combo.toLowerCase());
+  }, []);
 
   // Unregister handler
   const unregister = useCallback((combo: string) => {
-    handlers.delete(combo.toLowerCase());
-  }, [handlers]);
+    handlers.current.delete(combo.toLowerCase());
+  }, []);
 
   return {
     register,
